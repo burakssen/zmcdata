@@ -8,14 +8,12 @@ pub const Versioning = union(enum) {
     versioned_values: []VersionedValue,
 
     pub fn jsonParseFromObject(allocator: std.mem.Allocator, obj: std.json.ObjectMap, options: std.json.ParseOptions) !Versioning {
-        // Check for single version
         if (obj.get("version")) |v| {
             if (v == .string) {
                 return Versioning{ .single_version = v.string };
             }
         }
 
-        // Check for version range
         if (obj.get("versions")) |v| {
             if (v != .array) return error.UnexpectedToken;
             const arr = v.array;
@@ -27,7 +25,6 @@ pub const Versioning = union(enum) {
             return Versioning{ .version_range = [2][]const u8{ min_ver, max_ver } };
         }
 
-        // Check for versioned values
         if (obj.get("values")) |v| {
             if (v != .array) return error.UnexpectedToken;
             const arr = v.array;

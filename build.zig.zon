@@ -1,0 +1,13 @@
+.{
+    .name = .zmcdata,
+    .version = "0.0.1",
+    .dependencies = .{
+        .@"minecraft-data" = .{
+            .url = "git+https://github.com/PrismarineJS/minecraft-data#edfc78fe849b0203672a7fe1f533971ab56732d6",
+            .hash = "N-V-__8AAP-8WBbVUaJkJnR_4_4dfTscIknwisQ5F_V2OVBe",
+        },
+    },
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x333b6d7d34c050e8,
+}

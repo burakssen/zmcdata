@@ -138,16 +138,4 @@ test "Get Data" {
 
     const recipes = try zmcdata.get(schema.Recipes, "recipes");
     defer recipes.deinit();
-
-    var iter = recipes.value.recipes.iterator();
-    while (iter.next()) |entry| {
-        for (entry.value_ptr.bedrock.ingredients) |ingredient| {
-            const object = ingredient;
-            std.debug.print("Ingredient: {s}, Count: {d}\n", .{ object.name, object.count });
-            if (object.metadata) |md| {
-                std.debug.print("  Metadata: {d}\n", .{md});
-            }
-            break;
-        }
-    }
 }

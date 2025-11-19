@@ -117,7 +117,7 @@ pub const RecipeEntry = union(enum) {
     const BedrockRecipe = @import("bedrock_recipe.zig");
 
     java: []Recipe,
-    bedrock: BedrockRecipe,
+    bedrock: std.json.Parsed(BedrockRecipe),
 
     pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !RecipeEntry {
         // Case 1: Array of Java recipes
@@ -130,10 +130,7 @@ pub const RecipeEntry = union(enum) {
             return RecipeEntry{ .java = recipes };
         }
 
-        // Case 2: Single Bedrock recipe object
-        if (source == .object) {
-            return RecipeEntry{ .bedrock = try BedrockRecipe.jsonParseFromValue(allocator, source, options) };
-        }
+        if (source == .object) return RecipeEntry{ .bedrock = try std.json.parseFromValue(BedrockRecipe, allocator, source, options) };
 
         return error.UnexpectedToken;
     }
@@ -143,4 +140,126 @@ pub const Ingredient = struct {
     name: []const u8,
     count: i32,
     metadata: ?i32 = null,
+    nbt: ?Nbt = null,
+};
+
+pub const Nbt = struct {
+    version: i32,
+    nbt: struct {
+        type: []const u8,
+        name: []const u8,
+        value: NbtValue,
+    },
+};
+
+pub const NbtValue = struct {
+    FireworksItem: ?FireworksItemType = null,
+    customColor: ?CustomColor = null,
+    Fireworks: ?FireworksType = null,
+
+    const FireworksItemType = struct {
+        type: []const u8,
+        value: FireworksItemValue,
+    };
+
+    const FireworksItemValue = struct {
+        FireworkColor: FireworkColor,
+        FireworkFade: FireworkFade,
+        FireworkFlicker: FireworkFlicker,
+        FireworkTrail: FireworkTrail,
+        FireworkType: FireworkType,
+    };
+
+    const FireworkColor = struct {
+        type: []const u8,
+        value: []i32,
+    };
+
+    const FireworkFade = struct {
+        type: []const u8,
+        value: []i32,
+    };
+
+    const FireworkFlicker = struct {
+        type: []const u8,
+        value: i32,
+    };
+
+    const FireworkTrail = struct {
+        type: []const u8,
+        value: i32,
+    };
+
+    const FireworkType = struct {
+        type: []const u8,
+        value: i32,
+    };
+
+    const CustomColor = struct {
+        type: []const u8,
+        value: i64,
+    };
+
+    const FireworksType = struct {
+        type: []const u8,
+        value: FireworksValueType,
+    };
+
+    const FireworksValueType = struct {
+        Explosions: ExplosionsType,
+        Flight: FlightType,
+    };
+
+    const ExplosionsType = struct {
+        type: []const u8,
+        value: ExplosionsValue,
+    };
+
+    const ExplosionsValue = struct {
+        type: []const u8,
+        value: []FireworksItemValue,
+    };
+
+    const FlightType = struct {
+        type: []const u8,
+        value: i32,
+    };
+
+    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !NbtValue {
+        if (source != .object) return error.UnexpectedToken;
+        const obj = source.object;
+
+        var result = NbtValue{};
+
+        if (obj.get("FireworksItem")) |fireworks_item_value| {
+            const parsed = try std.json.parseFromValue(FireworksItemType, allocator, fireworks_item_value, options);
+            result.FireworksItem = parsed.value;
+        }
+
+        if (obj.get("customColor")) |val| {
+            const parsed = try std.json.parseFromValue(CustomColor, allocator, val, options);
+            result.customColor = parsed.value;
+        }
+
+        if (obj.get("Fireworks")) |val| {
+            const parsed = try std.json.parseFromValue(FireworksType, allocator, val, options);
+            result.Fireworks = parsed.value;
+        }
+
+        return result;
+    }
+
+    pub fn deinit(self: NbtValue, allocator: std.mem.Allocator) void {
+        if (self.FireworksItem) |item| {
+            allocator.free(item);
+        }
+
+        if (self.customColor) |color| {
+            allocator.free(color);
+        }
+
+        if (self.Fireworks) |fireworks| {
+            allocator.free(fireworks);
+        }
+    }
 };

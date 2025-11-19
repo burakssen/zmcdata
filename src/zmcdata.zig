@@ -1,19 +1,11 @@
 const std = @import("std");
 const config = @import("config");
 const schema = @import("schema/schema.zig");
+
+const enums = @import("enums.zig");
+const McType = enums.McType;
+
 const Zmcdata = @This();
-
-pub const McType = enum {
-    bedrock,
-    pc,
-
-    pub fn toString(self: McType) []const u8 {
-        return switch (self) {
-            .bedrock => "bedrock",
-            .pc => "pc",
-        };
-    }
-};
 
 allocator: std.mem.Allocator,
 mc_type: McType,
@@ -89,7 +81,7 @@ pub fn get(self: *Zmcdata, comptime T: type, dataname: []const u8) !std.json.Par
     if (maybe) |p| {
         data_path = p;
     } else {
-        std.debug.print("Warning: Key '{s}' not found.\n", .{dataname});
+        std.log.warn("Key '{s}' not found.", .{dataname});
 
         const filename = try std.fmt.allocPrint(self.allocator, "{s}.json", .{dataname});
         defer self.allocator.free(filename);
@@ -100,14 +92,12 @@ pub fn get(self: *Zmcdata, comptime T: type, dataname: []const u8) !std.json.Par
         );
         owns_path = true;
 
-        std.debug.print("Using fallback path: {s}\n", .{data_path});
+        std.log.warn("Using common path: {s}", .{data_path});
     }
 
     defer if (owns_path) {
         self.allocator.free(data_path);
     };
-
-    std.debug.print("Data Path: {s}\n", .{data_path});
 
     var file = try std.fs.openFileAbsolute(data_path, .{ .mode = .read_only });
     defer file.close();
@@ -165,12 +155,6 @@ test "Get Data" {
 
     const commands_data = try zmcdata.get(schema.Commands, "commands");
     defer commands_data.deinit();
-
-    for (commands_data.value.parsers) |parser| {
-        if (parser.modifier) |modifier| {
-            std.debug.print("Parser: {s}, Modifier: {any}\n", .{ parser.parser, modifier });
-        }
-    }
 
     const effects_data = try zmcdata.get(schema.Effects, "effects");
     defer effects_data.deinit();

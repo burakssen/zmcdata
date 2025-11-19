@@ -6,7 +6,6 @@ pub fn build(b: *std.Build) void {
 
     const minecraft_data_dep = b.dependency("minecraft-data", .{});
 
-    // 1. Create an Options Step
     const build_options = b.addOptions();
 
     build_options.addOptionPath("mcdatapath", minecraft_data_dep.path("data"));
@@ -17,8 +16,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // 3. Attach the options to your library module
-    // This allows your code to do: const config = @import("config");
     lib_mod.addOptions("config", build_options);
 
     const lib = b.addLibrary(.{
@@ -28,8 +25,6 @@ pub fn build(b: *std.Build) void {
     });
 
     b.installArtifact(lib);
-
-    // --- REMOVED install_data logic ---
 
     const lib_tests = b.addTest(.{
         .name = "zmcdata-tests",

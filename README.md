@@ -28,6 +28,29 @@ pub fn main() !void {
 }
 ```
 
+## As a Module
+
+You can add `zmcdata` as a module use `zig --fetch git+https://github.com/burakssen/zmcdata` to add.
+
+Then, in your `build.zig`:
+
+```zig
+const zmcdata = b.dependency("zmcdata", .{});
+
+const exe = b.addExecutable(.{
+    ...
+    .imports = &.{
+        .{ .name = "zmcdata", .module = zmcdata.module("zmcdata") },
+    },
+})
+```
+
+And in your `main.zig`:
+
+```zig
+const zmcdata = @import("zmcdata");
+```
+
 ## Building
 
 To build the library, run:

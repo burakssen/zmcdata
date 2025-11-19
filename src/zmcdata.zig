@@ -1,6 +1,6 @@
 const std = @import("std");
 const config = @import("config");
-const schema = @import("schema/schema.zig");
+pub const schema = @import("schema/schema.zig");
 const enums = @import("enums.zig");
 const McType = enums.McType;
 

@@ -156,6 +156,7 @@ test "Get Block Harvest Tools" {
     for (blocks.parsed.value) |block| {
         if (std.mem.eql(u8, block.name, "stone")) {
             try std.testing.expect(block.id == 1);
+            try std.testing.expectEqualStrings("stone", block.name);
             const ht = block.harvestTools orelse continue;
             try std.testing.expect(ht.get(item_id) orelse false);
             try std.testing.expectEqualStrings("stone_pickaxe", items.parsed.value[try std.fmt.parseInt(u16, item_id, 10)].name);

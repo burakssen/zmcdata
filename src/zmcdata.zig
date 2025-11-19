@@ -1,7 +1,6 @@
 const std = @import("std");
 const config = @import("config");
 const schema = @import("schema/schema.zig");
-
 const enums = @import("enums.zig");
 const McType = enums.McType;
 
@@ -16,6 +15,7 @@ pub fn init(allocator: std.mem.Allocator, mc_type: McType) Zmcdata {
     return .{
         .allocator = allocator,
         .mc_type = mc_type,
+        .path = config.mcdatapath,
         .data_paths = std.StringHashMap([]const u8).init(allocator),
     };
 }
@@ -30,30 +30,25 @@ pub fn deinit(self: *Zmcdata) void {
 }
 
 pub fn load(self: *Zmcdata, version: []const u8) !void {
-    var it = self.data_paths.iterator();
-    while (it.next()) |entry| {
-        self.allocator.free(entry.key_ptr.*);
-        self.allocator.free(entry.value_ptr.*);
-    }
-    self.data_paths.clearRetainingCapacity();
+    self.clearPaths();
 
-    const dataPathsFilePath = try std.fs.path.join(self.allocator, &.{ self.path, "dataPaths.json" });
-    defer self.allocator.free(dataPathsFilePath);
+    const paths_file = try std.fs.path.join(self.allocator, &.{ self.path, "dataPaths.json" });
+    defer self.allocator.free(paths_file);
 
-    const dataPathsFile = std.fs.openFileAbsolute(dataPathsFilePath, .{}) catch return error.DataPathsFileNotFound;
-    defer dataPathsFile.close();
+    const file = try std.fs.openFileAbsolute(paths_file, .{});
+    defer file.close();
 
-    const file_content = try dataPathsFile.readToEndAlloc(self.allocator, 1024 * 1024);
-    defer self.allocator.free(file_content);
+    const content = try file.readToEndAlloc(self.allocator, 1024 * 1024);
+    defer self.allocator.free(content);
 
-    const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, file_content, .{});
+    const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, content, .{});
     defer parsed.deinit();
 
     const type_obj = parsed.value.object.get(self.mc_type.toString()) orelse return error.McTypeNotFound;
     const version_obj = type_obj.object.get(version) orelse return error.VersionNotFound;
 
-    var it2 = version_obj.object.iterator();
-    while (it2.next()) |entry| {
+    var it = version_obj.object.iterator();
+    while (it.next()) |entry| {
         if (entry.value_ptr.* != .string) continue;
 
         const filename = try std.fmt.allocPrint(self.allocator, "{s}.json", .{entry.key_ptr.*});
@@ -71,71 +66,100 @@ pub fn load(self: *Zmcdata, version: []const u8) !void {
     }
 }
 
-pub fn get(self: *Zmcdata, comptime T: type, dataname: []const u8) !std.json.Parsed(T) {
+fn clearPaths(self: *Zmcdata) void {
+    var it = self.data_paths.iterator();
+    while (it.next()) |entry| {
+        self.allocator.free(entry.key_ptr.*);
+        self.allocator.free(entry.value_ptr.*);
+    }
+    self.data_paths.clearRetainingCapacity();
+}
 
-    // Determine data_path and whether we own it (need to free it).
-    var data_path: []const u8 = undefined;
-    var owns_path: bool = false;
+pub fn ParsedWithBuf(comptime T: type) type {
+    return struct {
+        parsed: std.json.Parsed(T),
+        buf: ?[]u8,
 
-    const maybe = self.data_paths.get(dataname);
-    if (maybe) |p| {
-        data_path = p;
-    } else {
-        std.log.warn("Key '{s}' not found.", .{dataname});
+        pub fn deinit(self: *ParsedWithBuf(T), allocator: std.mem.Allocator) void {
+            self.parsed.deinit();
+            if (self.buf) |b| allocator.free(b);
+            self.buf = null;
+        }
+    };
+}
 
+pub fn get(self: *Zmcdata, comptime T: type, dataname: []const u8) !ParsedWithBuf(T) {
+    const data_path = self.data_paths.get(dataname) orelse blk: {
+        std.log.warn("Key '{s}' not found, using common path", .{dataname});
         const filename = try std.fmt.allocPrint(self.allocator, "{s}.json", .{dataname});
         defer self.allocator.free(filename);
-
-        data_path = try std.fs.path.join(
-            self.allocator,
-            &.{ self.path, self.mc_type.toString(), "common", filename },
-        );
-        owns_path = true;
-
-        std.log.warn("Using common path: {s}", .{data_path});
-    }
-
-    defer if (owns_path) {
-        self.allocator.free(data_path);
+        break :blk try std.fs.path.join(self.allocator, &.{ self.path, self.mc_type.toString(), "common", filename });
     };
+    const owns_path = self.data_paths.get(dataname) == null;
+    defer if (owns_path) self.allocator.free(data_path);
 
-    var file = try std.fs.openFileAbsolute(data_path, .{ .mode = .read_only });
+    const file = try std.fs.openFileAbsolute(data_path, .{ .mode = .read_only });
     defer file.close();
 
-    var file_buffer: [1024]u8 = undefined;
-    var file_reader = file.reader(&file_buffer);
-    var file_writer: std.Io.Writer.Allocating = .init(self.allocator);
-    defer file_writer.deinit();
+    var buf: [1024]u8 = undefined;
+    var reader = file.reader(&buf);
+    var writer: std.Io.Writer.Allocating = .init(self.allocator);
+    defer writer.deinit();
 
-    _ = try file_reader.interface.stream(&file_writer.writer, .unlimited);
-
-    const content = try file_writer.toOwnedSlice();
-    defer self.allocator.free(content);
-
+    _ = try reader.interface.stream(&writer.writer, .unlimited);
+    const content = try writer.toOwnedSlice();
     const data = try std.json.parseFromSlice(T, self.allocator, content, .{});
 
-    return data;
+    return .{ .parsed = data, .buf = content };
 }
 
 test "Load Version Data Paths" {
     var zmcdata = Zmcdata.init(std.testing.allocator, .pc);
     defer zmcdata.deinit();
-
     try zmcdata.load("1.14");
 
-    const blocks_path = zmcdata.data_paths.get("blocks").?;
-    const items_path = zmcdata.data_paths.get("items").?;
-
-    try std.testing.expectStringEndsWith(blocks_path, "data/pc/1.14.4/blocks.json");
-    try std.testing.expectStringEndsWith(items_path, "data/pc/1.14/items.json");
+    try std.testing.expectStringEndsWith(zmcdata.data_paths.get("blocks").?, "data/pc/1.14.4/blocks.json");
+    try std.testing.expectStringEndsWith(zmcdata.data_paths.get("items").?, "data/pc/1.14/items.json");
 }
 
-test "Get Data" {
+test "Get Data For Bedrock Recipes" {
     var zmcdata = Zmcdata.init(std.testing.allocator, .bedrock);
     defer zmcdata.deinit();
-
     try zmcdata.load("1.21.93");
 
-    const recipes = try zmcdata.get(schema.Recipes, "recipes");
-    defer recipes.deinit();
+    var parsed = try zmcdata.get(schema.Recipes, "recipes");
+    defer parsed.deinit(zmcdata.allocator);
+}
+
+test "Get Data For PC Blocks" {
+    var zmcdata = Zmcdata.init(std.testing.allocator, .pc);
+    defer zmcdata.deinit();
+    try zmcdata.load("1.18");
+
+    var parsed = try zmcdata.get(schema.Blocks, "blocks");
+    defer parsed.deinit(zmcdata.allocator);
+}
+
+test "Get Block Harvest Tools" {
+    var zmcdata = Zmcdata.init(std.testing.allocator, .pc);
+    defer zmcdata.deinit();
+    try zmcdata.load("1.21");
+
+    var blocks = try zmcdata.get(schema.Blocks, "blocks");
+    defer blocks.deinit(zmcdata.allocator);
+
+    var items = try zmcdata.get(schema.Items, "items");
+    defer items.deinit(zmcdata.allocator);
+
+    const item_id: []const u8 = "825"; // stone_pickaxe
+
+    for (blocks.parsed.value) |block| {
+        if (std.mem.eql(u8, block.name, "stone")) {
+            try std.testing.expect(block.id == 1);
+            const ht = block.harvestTools orelse continue;
+            try std.testing.expect(ht.get(item_id) orelse false);
+            try std.testing.expectEqualStrings("stone_pickaxe", items.parsed.value[try std.fmt.parseInt(u16, item_id, 10)].name);
+            break;
+        }
+    }
 }

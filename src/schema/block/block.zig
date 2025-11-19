@@ -85,7 +85,7 @@ pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.jso
         if (ht != .object) return error.UnexpectedToken;
         const ht_obj = ht.object;
         var map = std.StringHashMap(bool).init(allocator);
-        defer map.deinit();
+        errdefer map.deinit();
 
         var iter = ht_obj.iterator();
         while (iter.next()) |entry| {

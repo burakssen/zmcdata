@@ -20,9 +20,9 @@ pub fn main() !void {
     try data.load("1.20.1");
 
     const blocks = try data.get(schema.Blocks, "blocks");
-    defer blocks.deinit();
+    defer blocks.deinit(allocator);
 
-    for (blocks.value) |block| {
+    for (blocks.parsed.value) |block| {
         std.debug.print("Block: {s}\n", .{block.name});
     }
 }

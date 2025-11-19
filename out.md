@@ -1,0 +1,11 @@
+Feature: metadataIxOfItem, Versioned Value: .{ .integer = 8 }
+Feature: metadataIxOfItem, Versioned Value: .{ .integer = 7 }
+Feature: metadataIxOfItem, Versioned Value: .{ .integer = 6 }
+Feature: metadataIxOfItem, Versioned Value: .{ .integer = 5 }
+Feature: metadataIxOfItem, Versioned Value: .{ .integer = 8 }
+Feature: nbtNameForEnchant, Versioned Value: .{ .string = { 69, 110, 99, 104, 97, 110, 116, 109, 101, 110, 116, 115 } }
+Feature: nbtNameForEnchant, Versioned Value: .{ .string = { 101, 110, 99, 104 } }
+Feature: typeOfValueForEnchantLevel, Versioned Value: .{ .string = { 115, 116, 114, 105, 110, 103 } }
+Feature: typeOfValueForEnchantLevel, Versioned Value: .{ .string = { 115, 104, 111, 114, 116 } }
+Feature: whereDurabilityIsSerialized, Versioned Value: .{ .string = { 68, 97, 109, 97, 103, 101 } }
+Feature: whereDurabilityIsSerialized, Versioned Value: .{ .string = { 109, 101, 116, 97, 100, 97, 116, 97 } }

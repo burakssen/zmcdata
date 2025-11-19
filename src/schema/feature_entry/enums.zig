@@ -1,17 +1,17 @@
 const std = @import("std");
 
-const VersionSpecificValue = @import("version_specific_value.zig");
+const VersionedValue = @import("versioned_value.zig");
 
-pub const FeatureVersioning = union(enum) {
+pub const Versioning = union(enum) {
     single_version: []const u8,
     version_range: [2][]const u8,
-    versioned_values: []VersionSpecificValue,
+    versioned_values: []VersionedValue,
 
-    pub fn jsonParseFromObject(allocator: std.mem.Allocator, obj: std.json.ObjectMap, options: std.json.ParseOptions) !FeatureVersioning {
+    pub fn jsonParseFromObject(allocator: std.mem.Allocator, obj: std.json.ObjectMap, options: std.json.ParseOptions) !Versioning {
         // Check for single version
         if (obj.get("version")) |v| {
             if (v == .string) {
-                return FeatureVersioning{ .single_version = v.string };
+                return Versioning{ .single_version = v.string };
             }
         }
 
@@ -24,7 +24,7 @@ pub const FeatureVersioning = union(enum) {
             const min_ver = if (arr.items[0] == .string) arr.items[0].string else return error.UnexpectedToken;
             const max_ver = if (arr.items[1] == .string) arr.items[1].string else return error.UnexpectedToken;
 
-            return FeatureVersioning{ .version_range = [2][]const u8{ min_ver, max_ver } };
+            return Versioning{ .version_range = [2][]const u8{ min_ver, max_ver } };
         }
 
         // Check for versioned values
@@ -32,14 +32,29 @@ pub const FeatureVersioning = union(enum) {
             if (v != .array) return error.UnexpectedToken;
             const arr = v.array;
 
-            var vals = try allocator.alloc(VersionSpecificValue, arr.items.len);
+            var vals = try allocator.alloc(VersionedValue, arr.items.len);
             for (arr.items, 0..) |item, i| {
-                vals[i] = try VersionSpecificValue.jsonParseFromValue(allocator, item, options);
+                vals[i] = try VersionedValue.jsonParseFromValue(allocator, item, options);
             }
 
-            return FeatureVersioning{ .versioned_values = vals };
+            return Versioning{ .versioned_values = vals };
         }
 
         return error.MissingField;
+    }
+};
+
+pub const VersionValue = union(enum) {
+    integer: i64,
+    string: []const u8,
+
+    pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !VersionValue {
+        if (source == .integer) {
+            return VersionValue{ .integer = source.integer };
+        } else if (source == .string) {
+            return VersionValue{ .string = source.string };
+        } else {
+            return error.UnexpectedToken;
+        }
     }
 };

@@ -2,12 +2,12 @@ const std = @import("std");
 
 const enums = @import("enums.zig");
 const BedrockRecipeType = enums.BedrockRecipeType;
-
+const Ingredient = enums.Ingredient;
 const BedrockRecipe = @This();
 
 name: ?[]const u8,
 type: BedrockRecipeType,
-ingredients: []std.json.Value,
+ingredients: []Ingredient,
 input: ?[]std.json.Value = null,
 output: []std.json.Value,
 priority: ?f32 = null,
@@ -32,8 +32,26 @@ pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, 
 
     const ingredients_val = obj.get("ingredients") orelse return error.MissingField;
     if (ingredients_val != .array) return error.UnexpectedToken;
-    const ingredients = try allocator.dupe(std.json.Value, ingredients_val.array.items);
-
+    const arr = ingredients_val.array;
+    var ingredients = try allocator.alloc(Ingredient, arr.items.len);
+    for (arr.items, 0..) |item, i| {
+        if (item != .object) return error.UnexpectedToken;
+        const ing_obj = item.object;
+        const ing_name_val = ing_obj.get("name") orelse return error.MissingField;
+        const ing_name = if (ing_name_val == .string) ing_name_val.string else return error.UnexpectedToken;
+        const ing_count_val = ing_obj.get("count") orelse return error.MissingField;
+        const ing_count = if (ing_count_val == .integer) @as(i32, @intCast(ing_count_val.integer)) else return error.UnexpectedToken;
+        const ing_metadata: ?i32 = if (ing_obj.get("metadata")) |md| switch (md) {
+            .integer => |m| @intCast(m),
+            .null => null,
+            else => return error.UnexpectedToken,
+        } else null;
+        ingredients[i] = Ingredient{
+            .name = ing_name,
+            .count = ing_count,
+            .metadata = ing_metadata,
+        };
+    }
     const input: ?[]std.json.Value = if (obj.get("input")) |inp| blk: {
         if (inp != .array) return error.UnexpectedToken;
         break :blk try allocator.dupe(std.json.Value, inp.array.items);

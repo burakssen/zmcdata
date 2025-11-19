@@ -2,8 +2,15 @@ const std = @import("std");
 
 pub const RecipeItem = union(enum) {
     id_only: ?i32,
-    id_metadata: struct { id: ?i32, metadata: i32 },
-    full: struct { id: ?i32, metadata: ?i32 = null, count: ?i32 = null },
+    id_metadata: struct {
+        id: ?i32,
+        metadata: i32,
+    },
+    full: struct {
+        id: ?i32,
+        metadata: ?i32 = null,
+        count: ?i32 = null,
+    },
 
     pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !RecipeItem {
         _ = allocator;
@@ -130,4 +137,10 @@ pub const RecipeEntry = union(enum) {
 
         return error.UnexpectedToken;
     }
+};
+
+pub const Ingredient = struct {
+    name: []const u8,
+    count: i32,
+    metadata: ?i32 = null,
 };

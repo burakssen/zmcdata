@@ -1,19 +1,19 @@
 const std = @import("std");
 
-const VersionSpecificValue = @This();
+const enums = @import("enums.zig");
+const VersionValue = enums.VersionValue;
 
-value: std.json.Value,
+const VersionedValue = @This();
+
+value: VersionValue,
 version: ?[]const u8 = null,
 versions: ?[2][]const u8 = null,
 
-pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !VersionSpecificValue {
-    _ = allocator;
-    _ = options;
-
+pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !VersionedValue {
     if (source != .object) return error.UnexpectedToken;
     const obj = source.object;
 
-    const value = obj.get("value") orelse return error.MissingField;
+    const value = try VersionValue.jsonParseFromValue(allocator, obj.get("value") orelse return error.MissingField, options);
 
     const version: ?[]const u8 = if (obj.get("version")) |v|
         if (v == .string) v.string else null
@@ -31,7 +31,7 @@ pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, 
         break :blk [2][]const u8{ min_ver, max_ver };
     } else null;
 
-    return VersionSpecificValue{
+    return VersionedValue{
         .value = value,
         .version = version,
         .versions = versions,

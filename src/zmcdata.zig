@@ -131,82 +131,23 @@ test "Load Version Data Paths" {
 }
 
 test "Get Data" {
-    var zmcdata = Zmcdata.init(std.testing.allocator, .pc);
+    var zmcdata = Zmcdata.init(std.testing.allocator, .bedrock);
     defer zmcdata.deinit();
 
-    try zmcdata.load("1.21");
-    const block_data = try zmcdata.get(schema.Blocks, "blocks");
-    defer block_data.deinit();
+    try zmcdata.load("1.21.93");
 
-    const biome_data = try zmcdata.get(schema.Biomes, "biomes");
-    defer biome_data.deinit();
+    const recipes = try zmcdata.get(schema.Recipes, "recipes");
+    defer recipes.deinit();
 
-    const attribute_data = try zmcdata.get(schema.Attributes, "attributes");
-    defer attribute_data.deinit();
-
-    const block_collision_shape_data = try zmcdata.get(schema.BlockCollisionShapes, "blockCollisionShapes");
-    defer block_collision_shape_data.deinit();
-
-    // const map_j2b = try zmcdata.get(schema.BlockMapping, "blocksJ2B");
-    // defer map_j2b.deinit();
-
-    // const map_b2j = try zmcdata.get(schema.BlockMapping, "blocksB2J");
-    // defer map_b2j.deinit();
-
-    const commands_data = try zmcdata.get(schema.Commands, "commands");
-    defer commands_data.deinit();
-
-    const effects_data = try zmcdata.get(schema.Effects, "effects");
-    defer effects_data.deinit();
-
-    const enchantments_data = try zmcdata.get(schema.Enchantments, "enchantments");
-    defer enchantments_data.deinit();
-
-    const entities_data = try zmcdata.get(schema.Entities, "entities");
-    defer entities_data.deinit();
-
-    // const entity_loot_data = try zmcdata.get(schema.EntityLoot, "entityLoot");
-    // defer entity_loot_data.deinit();
-
-    const features_data = try zmcdata.get(schema.Features, "features");
-    defer features_data.deinit();
-
-    // const foods_data = try zmcdata.get(schema.Foods, "foods");
-    // defer foods_data.deinit();
-
-    const instruments_data = try zmcdata.get(schema.Instruments, "instruments");
-    defer instruments_data.deinit();
-
-    const items_data = try zmcdata.get(schema.Items, "items");
-    defer items_data.deinit();
-
-    const language_data = try zmcdata.get(schema.Language, "language");
-    defer language_data.deinit();
-
-    // const map_icons_data = try zmcdata.get(schema.MapIcons, "mapIcons");
-    // defer map_icons_data.deinit();
-
-    const materials_data = try zmcdata.get(schema.Materials, "materials");
-    defer materials_data.deinit();
-
-    // const particles_data = try zmcdata.get(schema.Particles, "particles");
-    // defer particles_data.deinit();
-
-    const protocol_versions_data = try zmcdata.get(schema.ProtocolVersions, "protocolVersions");
-    defer protocol_versions_data.deinit();
-
-    const recipes_data = try zmcdata.get(schema.Recipes, "recipes");
-    defer recipes_data.deinit();
-
-    // const sounds_data = try zmcdata.get(schema.Sounds, "sounds");
-    // defer sounds_data.deinit();
-
-    // const tints_data = try zmcdata.get(schema.Tints, "tints");
-    // defer tints_data.deinit();
-
-    // const version_data = try zmcdata.get(schema.Version, "version");
-    // defer version_data.deinit();
-
-    const windows_data = try zmcdata.get(schema.Windows, "windows");
-    defer windows_data.deinit();
+    var iter = recipes.value.recipes.iterator();
+    while (iter.next()) |entry| {
+        for (entry.value_ptr.bedrock.ingredients) |ingredient| {
+            const object = ingredient;
+            std.debug.print("Ingredient: {s}, Count: {d}\n", .{ object.name, object.count });
+            if (object.metadata) |md| {
+                std.debug.print("  Metadata: {d}\n", .{md});
+            }
+            break;
+        }
+    }
 }
